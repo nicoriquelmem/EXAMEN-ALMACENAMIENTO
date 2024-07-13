@@ -140,14 +140,21 @@ resource "aws_s3_bucket" "website_bucket" {
   bucket = "website-bucket-riquelme-123456"
   acl    = "public-read"
 
-  website {
-    index_document = "index.html"
-    error_document = "error.html"
-  }
-
   tags = {
     Name        = "website-bucket-riquelme"
     Environment = "production"
+  }
+}
+
+resource "aws_s3_bucket_website_configuration" "website_bucket_config" {
+  bucket = aws_s3_bucket.website_bucket.bucket
+
+  index_document {
+    suffix = "index.html"
+  }
+
+  error_document {
+    key = "error.html"
   }
 }
 
