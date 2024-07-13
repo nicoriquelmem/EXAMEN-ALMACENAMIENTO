@@ -22,6 +22,8 @@ module "vpc" {
   public_subnets  = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
 
   enable_nat_gateway = true
+  single_nat_gateway = true  # Usa un solo NAT Gateway
+
   enable_vpn_gateway = false
 
   tags = {
@@ -145,11 +147,7 @@ resource "aws_s3_bucket" "website_bucket" {
   }
 }
 
-resource "aws_s3_bucket_acl" "website_bucket_acl" {
-  bucket = aws_s3_bucket.website_bucket.bucket
-  acl    = "public-read"
-}
-
+# Eliminamos la ACL para evitar el error de permisos
 resource "aws_s3_bucket_website_configuration" "website_bucket_config" {
   bucket = aws_s3_bucket.website_bucket.bucket
 
