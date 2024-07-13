@@ -111,120 +111,43 @@ resource "aws_security_group" "alb" {
   }
 }
 
-resource "aws_security_group" "efs" {
-  name        = "efs-RIQUELME"
-  description = "Security Group para EFS"
-
-  vpc_id = module.vpc.vpc_id
-
-  ingress {
-    description = "Permite NFS desde Web Servers"
-    from_port   = 2049
-    to_port     = 2049
-    protocol    = "tcp"
-    security_groups = [aws_security_group.sg_webserver.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "efs-RIQUELME"
-  }
-}
-
-resource "random_id" "bucket" {
-  byte_length = 8
-}
-
-resource "aws_s3_bucket" "website_bucket" {
-  bucket = "website-bucket-RIQUELME-${random_id.bucket.hex}"
-
-  tags = {
-    Name = "website-bucket-RIQUELME-${random_id.bucket.hex}"
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "website_bucket" {
-  bucket = aws_s3_bucket.website_bucket.id
-
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
-}
-
-resource "time_sleep" "wait_10_seconds" {
-  depends_on      = [aws_s3_bucket.website_bucket]
-  create_duration = "10s"
-}
-
-resource "aws_s3_bucket_policy" "website_bucket" {
-  bucket = aws_s3_bucket.website_bucket.id
-
-  policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "PublicReadGetObject",
-      "Effect": "Allow",
-      "Principal": "*",
-      "Action": "s3:GetObject",
-      "Resource": "${aws_s3_bucket.website_bucket.arn}/*"
-    }
-  ]
-}
-EOF
-
-  depends_on = [time_sleep.wait_10_seconds]
-}
-
-resource "aws_s3_object" "index_php" {
-  bucket = aws_s3_bucket.website_bucket.id
-  key    = "index.php"
-  source = "index.php"
-
-  depends_on = [aws_s3_bucket_policy.website_bucket]
-}
-
-resource "aws_efs_file_system" "efs" {
-  creation_token = "efs-RIQUELME"
-}
-
-resource "aws_efs_mount_target" "efs_mount" {
-  count          = length(module.vpc.private_subnets)
-  file_system_id = aws_efs_file_system.efs.id
-  subnet_id      = module.vpc.private_subnets[count.index]
-  security_groups = [aws_security_group.efs.id]
-}
-
 resource "aws_instance" "ec2" {
-  count         = length(module.vpc.private_subnets)
-  ami           = "ami-01b799c439fd5516a" 
+  count         = 2
+  ami           = "ami-0c55b159cbfafe1f0"
   instance_type = "t2.micro"
-  key_name      = "vockey"
 
-  subnet_id              = element(module.vpc.private_subnets, count.index)
   vpc_security_group_ids = [aws_security_group.sg_webserver.id]
-  depends_on             = [aws_efs_mount_target.efs_mount]
+  subnet_id              = element(module.vpc.private_subnets, count.index)
 
   user_data = <<-EOF
               #!/bin/bash
-              sudo yum install -y httpd php
-              sudo mkdir -p /mnt/efs
-              sudo mount -t efs ${aws_efs_file_system.efs.id}:/ /mnt/efs
-              sudo ln -s /mnt/efs/index.php /var/www/html/index.php
-              sudo systemctl enable httpd
+              sudo yum update -y
+              sudo yum install -y httpd
               sudo systemctl start httpd
+              sudo systemctl enable httpd
+              sudo yum install -y amazon-efs-utils
+              sudo mkdir /var/www/html
+              sudo mount -t efs fs-12345678:/ /var/www/html
+              sudo cp /var/www/html/index.html /var/www/html/index.html
               EOF
 
   tags = {
     Name = "EC2-RIQUELME-${count.index + 1}"
+  }
+}
+
+resource "aws_s3_bucket" "website_bucket" {
+  bucket = "website-bucket-riquelme-123456"
+  acl    = "public-read"
+
+  website {
+    index_document = "index.html"
+    error_document = "error.html"
+  }
+
+  tags = {
+    Name        = "website-bucket-riquelme"
+    Environment = "production"
   }
 }
 
