@@ -113,7 +113,7 @@ resource "aws_security_group" "alb" {
 
 resource "aws_instance" "ec2" {
   count         = 2
-  ami           = "ami-0c55b159cbfafe1f0"
+  ami           = "ami-08c40ec9ead489470" # AMI ID actualizado
   instance_type = "t2.micro"
 
   vpc_security_group_ids = [aws_security_group.sg_webserver.id]
@@ -138,12 +138,16 @@ resource "aws_instance" "ec2" {
 
 resource "aws_s3_bucket" "website_bucket" {
   bucket = "website-bucket-riquelme-123456"
-  acl    = "public-read"
-
+  
   tags = {
     Name        = "website-bucket-riquelme"
     Environment = "production"
   }
+}
+
+resource "aws_s3_bucket_acl" "website_bucket_acl" {
+  bucket = aws_s3_bucket.website_bucket.bucket
+  acl    = "public-read"
 }
 
 resource "aws_s3_bucket_website_configuration" "website_bucket_config" {
